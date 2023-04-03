@@ -1,5 +1,4 @@
 use crate::bloom::{BloomFilter, CountingBloomFilter};
-use crate::Membership;
 
 /// Builder for Bloom Filters.
 #[derive(Clone)]
@@ -104,19 +103,6 @@ impl FilterBuilder {
         }
     }
 
-    /// set the expected size of the filter.
-    fn expected_elements(&mut self, expected_elements: u64) {
-        assert!(expected_elements > 0, "expected_elements must larger than 0!");
-        self.expected_elements = expected_elements;
-    }
-
-    /// set the tolerable false positive probability.
-    fn false_positive_probability(&mut self, false_positive_probability: f64) {
-        assert!(false_positive_probability < 1.0 && false_positive_probability > 0.0,
-                "false_positive_probability must between (0.0, 1.0)!");
-        self.false_positive_probability = false_positive_probability;
-    }
-
     /// Use for CountingBloomFilter.
     ///
     /// # Example:
@@ -148,11 +134,6 @@ impl FilterBuilder {
         self.enable_repeat_insert = enable;
     }
 
-    /// set  the size of the bloom filter in bits.
-    fn size(&mut self, size: u64) {
-        assert_eq!(size & SUFFIX as u64, 0);
-        self.size = size;
-    }
 
 
     /// Checks if all necessary parameters were set and tries to infer optimal parameters (e.g.

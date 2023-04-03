@@ -1,5 +1,3 @@
-use core::mem::size_of;
-
 use crate::builder::SUFFIX;
 
 #[inline(always)]
@@ -51,6 +49,19 @@ impl BloomBitVec {
         let b = index & SUFFIX;
         let flag = 1usize << b;
         (self.storage[w] & flag) != 0
+    }
+
+    #[inline]
+    pub fn get_and_set(&mut self, index: usize) -> bool {
+        #[cfg(target_pointer_width = "64")]
+            let w = index >> 6;
+        #[cfg(target_pointer_width = "32")]
+            let w = index >> 5;
+        let b = index & SUFFIX;
+        let flag = 1usize << b;
+        let value = (self.storage[w] & flag) != 0;
+        self.storage[w] = self.storage[w] | flag;
+        value
     }
 
     pub fn or(&mut self, other: &BloomBitVec) {

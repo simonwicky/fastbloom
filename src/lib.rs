@@ -1,22 +1,37 @@
-use pyo3::prelude::*;
+extern crate core;
 
-use crate::pybloom::{PyBloomFilter, PyFilterBuilder, PyCountingBloomFilter};
+pub use bloom::{BloomFilter, CountingBloomFilter};
+pub use builder::FilterBuilder;
 
-pub mod pybloom;
+mod builder;
+mod bloom;
+mod vec;
+mod cuckoo;
+mod sketch;
 
-#[pymodule]
-fn fastbloom_rs(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
-    m.add_class::<PyBloomFilter>().unwrap();
-    m.add_class::<PyFilterBuilder>().unwrap();
-    m.add_class::<PyCountingBloomFilter>().unwrap();
-    Ok(())
+/// filter for check whether membership.
+pub trait Membership {
+    fn add(&mut self, element: &[u8]);
+
+    fn contains(&self, element: &[u8]) -> bool;
+
+    fn contains_then_add(&mut self, element: &[u8]) -> bool;
+
+    fn get_hash_indices(&self, element: &[u8]) -> Vec<u64>;
+
+    fn contains_hash_indices(&self, indices: &Vec<u64>) -> bool;
+
+    fn clear(&mut self);
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
+pub trait Hashes {
+    fn hashes(&self) -> u32;
 }
+
+/// filter which can remove element.
+pub trait Deletable {
+    /// remove element from this data structures.
+    fn remove(&mut self, element: &[u8]);
+}
+
+

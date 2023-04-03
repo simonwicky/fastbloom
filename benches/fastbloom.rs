@@ -47,6 +47,19 @@ fn bloom_add_test(filter: &mut BloomFilter, data: &[u8]) {
     filter.add(data);
 }
 
+fn bloom_lookup_and_add_all_test(filter: &mut BloomFilter, inputs: &[String]) {
+    for input in inputs {
+        filter.contains(input.as_bytes());
+        filter.add(input.as_bytes());
+    }
+}
+
+fn bloom_lookup_and_add_all_merged_test(filter: &mut BloomFilter, inputs: &[String]) {
+    for input in inputs {
+        filter.contains_then_add(input.as_bytes());
+    }
+}
+
 fn random_test(random: &mut ThreadRng, range: &Range<i32>) {
     let value: usize = random.gen_range(0..4096 * 1024 - 1);
     black_box(&u64::to_le_bytes(value as u64));
@@ -153,6 +166,21 @@ fn bloom_add_bench(c: &mut Criterion) {
     c.bench_function("bloom_not_contains_test", |b| b.iter(|| filter.contains(black_box(b"hellohellohello"))));
 }
 
+fn bloom_lookup_and_add_bench(c: &mut Criterion) {
+    let inputs: Vec<String> = (1..1_000_000).map(|n| { n.to_string() }).collect();
+    let items_count = 100_000_000;
+
+    let hello = "hellohellohellohello".to_string();
+    let mut random = rand::thread_rng();
+    let range = 0..10_000_000;
+
+    let mut filter = FilterBuilder::new(items_count as u64, 0.001).build_bloom_filter();
+    let mut filter2 = FilterBuilder::new(items_count as u64, 0.001).build_bloom_filter();
+
+    c.bench_function("bloom_lookup_and_add_all_test", |b| b.iter(|| bloom_lookup_and_add_all_test(&mut filter, &inputs[..])));
+    c.bench_function("bloom_lookup_and_add_all_merged_test", |b| b.iter(|| bloom_lookup_and_add_all_merged_test(&mut filter2, &inputs[..])));
+}
+
 fn counting_bloom_add_bench(c: &mut Criterion) {
     let inputs: Vec<String> = (1..1_000_000).map(|n| { n.to_string() }).collect();
     let items_count = 100_000_000;
@@ -167,5 +195,5 @@ fn counting_bloom_add_bench(c: &mut Criterion) {
     }));
 }
 
-criterion_group!(benches, bloom_add_bench, counting_bloom_add_bench);
+criterion_group!(benches, bloom_lookup_and_add_bench, hash_bench);
 criterion_main!(benches);

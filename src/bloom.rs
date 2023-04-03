@@ -1,8 +1,7 @@
-use std::clone;
 use std::cmp::min;
 use std::ptr::slice_from_raw_parts;
 
-use fastmurmur3::murmur3_x64_128;
+//use fastmurmur3::murmur3_x64_128;
 use xxhash_rust::xxh3::xxh3_64_with_seed;
 
 use crate::{Deletable, Hashes, Membership};
@@ -43,7 +42,22 @@ fn bit_check(bit_set: &BloomBitVec, value: &[u8], m: u64, k: u64) -> bool {
 }
 
 #[inline]
-fn get_bit_indices(bit_set: &BloomBitVec, value: &[u8], m: u64, k: u64) -> Vec<u64> {
+fn bit_check_and_set(bit_set: &mut BloomBitVec, value: &[u8], m: u64, k: u64) -> bool {
+    // let hash1 = (murmur3_x64_128(value, 0) % m) as u64;
+    // let hash2 = (murmur3_x64_128(value, 32) % m) as u64;
+    let hash1 = xxh3_64_with_seed(value, 0) % m;
+    let hash2 = xxh3_64_with_seed(value, 32) % m;
+    let mut res = bit_set.get_and_set(hash1 as usize);
+    // let m = m as u64;
+    for i in 1..k {
+        let mo = ((hash1 + i * hash2) % m) as usize;
+        res = res && bit_set.get_and_set(mo);
+    }
+    res
+}
+
+#[inline]
+fn get_bit_indices(value: &[u8], m: u64, k: u64) -> Vec<u64> {
     let mut res = Vec::<u64>::with_capacity(k as usize);
     // let hash1 = (murmur3_x64_128(value, 0) % m) as u64;
     // let hash2 = (murmur3_x64_128(value, 32) % m) as u64;
@@ -87,9 +101,16 @@ impl Membership for BloomFilter {
                   self.config.hashes as u64)
     }
 
+    /// Adds the passed value to the filter, and returns whether it was present already  (subject to the specified false
+    /// positive rate).
+    fn contains_then_add(&mut self, element: &[u8]) -> bool {
+        bit_check_and_set(&mut self.bit_set, element, self.config.size,
+            self.config.hashes as u64)
+    }
+
     /// Get the hashes indices of the element in the filter.
     fn get_hash_indices(&self, element: &[u8]) -> Vec<u64> {
-        get_bit_indices(&self.bit_set, element, self.config.size,
+        get_bit_indices(element, self.config.size,
                         self.config.hashes as u64)
     }
 
@@ -346,11 +367,6 @@ impl BloomFilter {
         self.bit_set.is_empty()
     }
 
-    pub(crate) fn set_bit_vec(&mut self, bit_vec: BloomBitVec) {
-        assert_eq!(self.config.size, bit_vec.nbits as u64);
-        self.bit_set = bit_vec
-    }
-
     /// Checks if two Bloom filters are compatible, i.e. have compatible parameters (hash function,
     /// size, etc.)
     fn compatible(&self, other: &BloomFilter) -> bool {
@@ -406,17 +422,6 @@ impl CountingBloomFilter {
         #[cfg(target_pointer_width = "32")]
             let counting_vec = CountingVec::new((config.size >> 3) as usize);
         CountingBloomFilter { config, counting_vec }
-    }
-
-    pub(crate) fn set_counting_vec(&mut self, counting_vec: CountingVec) {
-        assert_eq!(self.config.size, counting_vec.counters as u64);
-        self.counting_vec = counting_vec
-    }
-
-    /// Checks if two Counting Bloom filters are compatible, i.e. have compatible parameters (hash
-    /// function, size, etc.)
-    fn compatible(&self, other: &BloomFilter) -> bool {
-        self.config.is_compatible_to(&other.config)
     }
 
     /// Returns the configuration/builder of the Bloom filter.
@@ -536,6 +541,13 @@ impl Membership for CountingBloomFilter {
             res = res && (self.counting_vec.get(mo) > 0);
             if !res { return false; }
         }
+        res
+    }
+
+    #[inline]
+    fn contains_then_add(&mut self, element: &[u8]) -> bool {
+        let res = self.contains(element);
+        self.add(element);
         res
     }
 
