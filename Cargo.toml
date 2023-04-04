@@ -8,7 +8,6 @@ documentation = "https://docs.rs/fastbloom-rs"
 readme = "../README.md"
 homepage = "https://github.com/yankun1992/fastbloom"
 repository = "https://github.com/yankun1992/fastbloom"
-license-file = "../LICENSE"
 keywords = ["bloom-filter", "bloom", "filter", "bloomfilter", "countingbloomfilter"]
 categories = ["algorithms", "data-structures"]
 license = "Apache-2.0"

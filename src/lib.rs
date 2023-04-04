@@ -1,13 +1,9 @@
-extern crate core;
-
 pub use bloom::{BloomFilter, CountingBloomFilter};
 pub use builder::FilterBuilder;
 
 mod builder;
 mod bloom;
 mod vec;
-mod cuckoo;
-mod sketch;
 
 /// filter for check whether membership.
 pub trait Membership {
