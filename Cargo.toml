@@ -1,13 +1,13 @@
 [package]
 name = "fastbloom-rs"
-version = "0.5.3"
+version = "0.5.4"
 edition = "2021"
 authors = ["Yan Kun <yan_kun_1992@foxmail.com>", "Simon Wicky <simon@nymtech.net>"]
 description = "Some fast bloom filter implemented by Rust for Python and Rust!"
 documentation = "https://docs.rs/fastbloom-rs"
 readme = "../README.md"
-homepage = "https://github.com/yankun1992/fastbloom"
-repository = "https://github.com/yankun1992/fastbloom"
+homepage = "https://github.com/simonwicky/fastbloom"
+repository = "https://github.com/simonwicky/fastbloom"
 keywords = ["bloom-filter", "bloom", "filter", "bloomfilter", "countingbloomfilter"]
 categories = ["algorithms", "data-structures"]
 license = "Apache-2.0"
