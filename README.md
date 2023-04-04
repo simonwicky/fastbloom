@@ -64,40 +64,6 @@ Bloom filter is a small counter associated with a basic Bloom filter bit.
 Construction for Counting Bloom Filters,” in 14th Annual European Symposium on
 Algorithms, LNCS 4168, 2006
 
-### Python
-
-```python
-from fastbloom_rs import CountingBloomFilter
-
-cbf = CountingBloomFilter(1000_000, 0.01)
-cbf.add('hello')
-cbf.add('hello')
-assert 'hello' in cbf
-cbf.remove('hello')
-assert 'hello' in cbf  # because 'hello' added twice. 
-# If add same element larger than 15 times, then remove 15 times the filter will not contain the element.
-cbf.remove('hello')
-assert 'hello' not in cbf
-```
-
-A CountingBloomFilter has a four bits counter to save hash index, so when insert an
-element repeatedly, the counter will spill over quickly. So, you can set
-`enable_repeat_insert` to `False` to check whether the element has added.
-if it has added, it will not add again. `enable_repeat_insert` default set to `True`.
-
-```python
-from fastbloom_rs import CountingBloomFilter
-
-cbf = CountingBloomFilter(1000_000, 0.01, False)
-cbf.add('hello')
-cbf.add('hello')  # because enable_repeat_insert=False, this addition will not take effect. 
-assert 'hello' in cbf
-cbf.remove('hello')
-assert 'hello' not in cbf 
-```
-
-more examples at [py_tests](py_tests/test_counting_bloom_filter.py).
-
 ### Rust
 
 ```rust
