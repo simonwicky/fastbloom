@@ -51,7 +51,7 @@ fn bit_check_and_set(bit_set: &mut BloomBitVec, value: &[u8], m: u64, k: u64) ->
     // let m = m as u64;
     for i in 1..k {
         let mo = ((hash1 + i * hash2) % m) as usize;
-        res = res && bit_set.get_and_set(mo);
+        res = bit_set.get_and_set(mo) && res;
     }
     res
 }
