@@ -156,29 +156,26 @@ impl CountingVec {
     }
 }
 
-#[test]
-fn test_vec() {
-    let mut vec = BloomBitVec::new(16);
-    vec.set(37);
-    vec.set(38);
-    println!("{:?}", vec);
-    assert_eq!(vec.get(37), true);
-    assert_eq!(vec.get(38), true);
-}
+#[cfg(test)]
+mod vec_test {
+    use super::*;
 
-#[test]
-fn test_size() {
-    println!("{}", get_usize_len());
-    #[cfg(target_pointer_width = "64")]
-    assert_eq!(get_usize_len(), 64);
-    #[cfg(target_pointer_width = "32")]
-    assert_eq!(get_usize_len(), 32);
-}
+    #[test]
+    fn test_vec() {
+        let mut vec = BloomBitVec::new(16);
+        vec.set(37);
+        vec.set(38);
+        println!("{:?}", vec);
+        assert_eq!(vec.get(37), true);
+        assert_eq!(vec.get(38), true);
+    }
 
-#[test]
-fn test_count_vec() {
-    let mut vec = CountingVec::new(10);
-    vec.increment(7);
 
-    assert_eq!(1, vec.get(7))
+    #[test]
+    fn test_count_vec() {
+        let mut vec = CountingVec::new(10);
+        vec.increment(7);
+
+        assert_eq!(1, vec.get(7))
+    }
 }

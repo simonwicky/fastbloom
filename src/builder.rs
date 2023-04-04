@@ -170,22 +170,29 @@ impl FilterBuilder {
     }
 }
 
-#[test]
-fn optimal_test() {
-    let m = optimal_m(100_000_000, 0.01);
-    let k = optimal_k(100_000_000, m);
-    let n = optimal_n(k, m);
-    let p = optimal_p(k, m, n);
-    println!("{m} {k} {n} {p}");
-    assert_eq!(m, 958505856);
-    assert_eq!(k, 7)
-}
 
-#[test]
-fn builder_test() {
-    let mut bloom = FilterBuilder::new(100_000_000, 0.01)
-        .build_bloom_filter();
-    bloom.add(b"helloworld");
-    assert_eq!(bloom.contains(b"helloworld"), true);
-    assert_eq!(bloom.contains(b"helloworld!"), false);
+#[cfg(test)]
+mod builder_tests {
+    use super::*;
+    use crate::Membership;
+
+    #[test]
+    fn optimal_test() {
+        let m = optimal_m(100_000_000, 0.01);
+        let k = optimal_k(100_000_000, m);
+        let n = optimal_n(k, m);
+        let p = optimal_p(k, m, n);
+        println!("{m} {k} {n} {p}");
+        assert_eq!(m, 958505856);
+        assert_eq!(k, 7)
+    }
+
+    #[test]
+    fn builder_test() {
+        let mut bloom = FilterBuilder::new(100_000_000, 0.01)
+            .build_bloom_filter();
+        bloom.add(b"helloworld");
+        assert_eq!(bloom.contains(b"helloworld"), true);
+        assert_eq!(bloom.contains(b"helloworld!"), false);
+    }
 }

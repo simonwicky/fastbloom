@@ -163,7 +163,7 @@ impl BloomFilter {
     /// ```rust
     /// use fastbloom_rs::BloomFilter;
     /// let mut array = vec![0u8; 4096];
-    /// let bloom = BloomFilter::from_u8_array(array.as_bytes(), 4);
+    /// let bloom = BloomFilter::from_u8_array(&array, 4);
     /// ```
     pub fn from_u8_array(array: &[u8], hashes: u32) -> Self {
         let mut config =
@@ -192,7 +192,7 @@ impl BloomFilter {
     /// ```rust
     /// use fastbloom_rs::BloomFilter;
     /// let mut array = vec![0u16; 2048];
-    /// let bloom = BloomFilter::from_u16_array(array.as_bytes(), 4);
+    /// let bloom = BloomFilter::from_u16_array(&array, 4);
     /// ```
     pub fn from_u16_array(array: &[u16], hashes: u32) -> Self {
         let mut config =
@@ -222,7 +222,7 @@ impl BloomFilter {
     /// ```rust
     /// use fastbloom_rs::BloomFilter;
     /// let mut array = vec![0u32; 1024];
-    /// let bloom = BloomFilter::from_u32_array(array.as_bytes(), 4);
+    /// let bloom = BloomFilter::from_u32_array(&array, 4);
     /// ```
     pub fn from_u32_array(array: &[u32], hashes: u32) -> Self {
         let mut config =
@@ -251,7 +251,7 @@ impl BloomFilter {
     /// ```rust
     /// use fastbloom_rs::BloomFilter;
     /// let mut array = vec![0u64; 512];
-    /// let bloom = BloomFilter::from_u32_array(array.as_bytes(), 4);
+    /// let bloom = BloomFilter::from_u64_array(&array, 4);
     /// ```
     pub fn from_u64_array(array: &[u64], hashes: u32) -> Self {
         let mut config =
@@ -612,247 +612,203 @@ impl Hashes for CountingBloomFilter {
     }
 }
 
-/// A Partitioned Bloom Filter is a variation of a classic Bloom Filter.
-///
-/// This filter works by partitioning the M-sized bit array into k slices of size `m = M/k` bits,
-/// `k = nb of hash functions` in the filter. Each hash function produces an index over `m` for its
-/// respective slice. Thus, each element is described by exactly `k` bits, meaning the distribution
-/// of false positives is uniform across all elements.
-///
-/// Be careful, as a Partitioned Bloom Filter have much higher collison risks that a classic
-/// Bloom Filter on small sets of data.
-///
-/// **Reference**: Chang, F., Feng, W. C., & Li, K. (2004, March). Approximate caches for packet
-/// classification. In INFOCOM 2004. Twenty-third AnnualJoint Conference of the IEEE Computer and
-/// Communications Societies (Vol. 4, pp. 2196-2207). IEEE.
-/// [Full text article](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.153.6902&rep=rep1&type=pdf)
-#[derive(Clone)]
-#[derive(Debug)]
-pub(crate) struct PartitionedBloomFilter {}
+#[cfg(test)]
+mod bloom_tests {
+    use super::*;
 
-impl PartitionedBloomFilter {}
+    #[test]
+    fn bloom_test() {
+        let mut builder =
+            FilterBuilder::new(10_000_000, 0.01);
+        let mut bloom = builder.build_bloom_filter();
+        println!("{:?}", bloom.config);
+        bloom.add(b"hello");
+        println!("{:?}", &bloom.bit_set.storage[0..300]);
+        assert_eq!(bloom.contains(b"hello"), true);
+        assert_eq!(bloom.contains(b"world"), false);
 
-/// A Scalable Bloom Filter is a variant of Bloom Filters that can adapt dynamically to the number
-/// of elements stored, while assuring a maximum false positive probability.
-///
-/// **Reference**: ALMEIDA, Paulo Sérgio, BAQUERO, Carlos, PREGUIÇA, Nuno, et al. Scalable bloom
-/// filters. Information Processing Letters, 2007, vol. 101, no 6, p. 255-261.
-/// [Full text article](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.725.390&rep=rep1&type=pdf)
-#[derive(Clone)]
-#[derive(Debug)]
-pub(crate) struct ScalableBloomFilter {}
+        let storage = &bloom.bit_set.storage[0..300];
+        println!("{:?}", storage);
 
-impl ScalableBloomFilter {}
+        #[cfg(target_pointer_width = "64")]{
+            let bloom2 = BloomFilter::from_u64_array(bloom.get_u64_array(), bloom.hashes());
+            assert_eq!(bloom2.compatible(&bloom), true);
+            assert_eq!(bloom2.contains(b"hello"), true);
+            assert_eq!(bloom2.contains(b"world"), false);
+        }
 
-/// An Invertible Bloom Filters (IBLT), also called Invertible Bloom Lookup Table, is a
-/// space-efficient and probabilistic data-structure for solving the set-difference problem
-/// efficiently without the use of logs or other prior context. It computes the set difference
-/// with communication proportional to the size of the difference between the sets being compared.
-/// They can simultaneously calculate D(A−B) and D(B−A) using O(d) space. This data structure
-/// encodes sets in a fashion that is similar in spirit to Tornado codes’ construction, in that it
-/// randomly combines elements using the XOR function.
-///
-/// **Reference**: Eppstein, D., Goodrich, M. T., Uyeda, F., & Varghese, G. (2011). What's the
-/// difference?: efficient set reconciliation without prior context. ACM SIGCOMM Computer
-/// Communication Review, 41(4), 218-229.
-/// [Full text article](http://www.sysnet.ucsd.edu/sysnet/miscpapers/EppGooUye-SIGCOMM-11.pdf)
-#[derive(Clone)]
-#[derive(Debug)]
-pub(crate) struct InvertibleBloomFilter {}
+        let mut bloom3 =
+            BloomFilter::from_u32_array(bloom.get_u32_array(), bloom.config.hashes);
+        assert_eq!(bloom3.compatible(&bloom), true);
+        assert_eq!(bloom3.contains(b"hello"), true);
+        assert_eq!(bloom3.contains(b"world"), false);
 
-impl InvertibleBloomFilter {}
+        let u8_array = bloom.get_u8_array();
+        let mut bloom4 = BloomFilter::from_u8_array(u8_array, bloom.config.hashes);
+        println!("{:?}", &bloom4.bit_set.storage[0..300]);
+        assert_eq!(bloom4.compatible(&bloom), true);
+        assert_eq!(bloom4.contains(b"hello"), true);
+        assert_eq!(bloom4.contains(b"world"), false);
 
-#[derive(Clone)]
-#[derive(Debug)]
-pub(crate) struct GarbledBloomFilter {}
+        let bloom5 = BloomFilter::from_u16_array(bloom.get_u16_array(), bloom.hashes());
+        assert_eq!(bloom5.compatible(&bloom), true);
+        assert_eq!(bloom5.contains(b"hello"), true);
+        assert_eq!(bloom5.contains(b"world"), false);
 
-impl GarbledBloomFilter {}
+        bloom4.add(b"hello world");
 
+        assert_eq!(bloom.intersect(&bloom4), true);
+        assert_eq!(bloom.contains(b"hello"), true);
+        assert_eq!(bloom.contains(b"hello world"), false);
 
-#[test]
-fn bloom_test() {
-    let mut builder =
-        FilterBuilder::new(10_000_000, 0.01);
-    let mut bloom = builder.build_bloom_filter();
-    println!("{:?}", bloom.config);
-    bloom.add(b"hello");
-    println!("{:?}", &bloom.bit_set.storage[0..300]);
-    assert_eq!(bloom.contains(b"hello"), true);
-    assert_eq!(bloom.contains(b"world"), false);
+        bloom3.add(b"hello world");
+        bloom3.add(b"hello yankun");
 
-    let storage = &bloom.bit_set.storage[0..300];
-    println!("{:?}", storage);
-
-    #[cfg(target_pointer_width = "64")]{
-        let mut bloom2 = BloomFilter::from_u64_array(bloom.get_u64_array(), bloom.hashes());
-        assert_eq!(bloom2.compatible(&bloom), true);
-        assert_eq!(bloom2.contains(b"hello"), true);
-        assert_eq!(bloom2.contains(b"world"), false);
+        assert_eq!(bloom3.union(&bloom4), true);
+        assert_eq!(bloom3.contains(b"hello"), true);
+        assert_eq!(bloom3.contains(b"hello world"), true);
+        assert_eq!(bloom3.contains(b"hello yankun"), true);
     }
 
-    let mut bloom3 =
-        BloomFilter::from_u32_array(bloom.get_u32_array(), bloom.config.hashes);
-    assert_eq!(bloom3.compatible(&bloom), true);
-    assert_eq!(bloom3.contains(b"hello"), true);
-    assert_eq!(bloom3.contains(b"world"), false);
+    #[test]
+    fn bloom_lookup_insert_test() {
+        let mut bloom = FilterBuilder::new(10_000_000, 0.01).build_bloom_filter();
+        assert_eq!(bloom.contains_then_add(b"hello world!"), false);
+        assert_eq!(bloom.contains_then_add(b"hello world!"), true);
+    }
 
-    let u8_array = bloom.get_u8_array();
-    let mut bloom4 = BloomFilter::from_u8_array(u8_array, bloom.config.hashes);
-    println!("{:?}", &bloom4.bit_set.storage[0..300]);
-    assert_eq!(bloom4.compatible(&bloom), true);
-    assert_eq!(bloom4.contains(b"hello"), true);
-    assert_eq!(bloom4.contains(b"world"), false);
+    #[test]
+    fn bloom_hash_indices_test() {
+        let mut builder =
+            FilterBuilder::new(10_000, 0.01);
+        let mut bloom = builder.build_bloom_filter();
+        println!("{:?}", bloom.config);
+        bloom.add(b"hello");
+        assert_eq!(bloom.contains(b"hello"), true);
+        assert_eq!(bloom.contains(b"world"), false);
 
-    let bloom5 = BloomFilter::from_u16_array(bloom.get_u16_array(), bloom.hashes());
-    assert_eq!(bloom5.compatible(&bloom), true);
-    assert_eq!(bloom5.contains(b"hello"), true);
-    assert_eq!(bloom5.contains(b"world"), false);
-
-    bloom4.add(b"hello world");
-
-    assert_eq!(bloom.intersect(&bloom4), true);
-    assert_eq!(bloom.contains(b"hello"), true);
-    assert_eq!(bloom.contains(b"hello world"), false);
-
-    bloom3.add(b"hello world");
-    bloom3.add(b"hello yankun");
-
-    assert_eq!(bloom3.union(&bloom4), true);
-    assert_eq!(bloom3.contains(b"hello"), true);
-    assert_eq!(bloom3.contains(b"hello world"), true);
-    assert_eq!(bloom3.contains(b"hello yankun"), true);
-}
-
-#[test]
-fn bloom_hash_indices_test() {
-    let mut builder =
-        FilterBuilder::new(10_000, 0.01);
-    let mut bloom = builder.build_bloom_filter();
-    println!("{:?}", bloom.config);
-    bloom.add(b"hello");
-    assert_eq!(bloom.contains(b"hello"), true);
-    assert_eq!(bloom.contains(b"world"), false);
-
-    let indices = bloom.get_hash_indices(b"hello");
-    println!("{:?}", indices);
-    assert_eq!(bloom.contains_hash_indices(&indices), true);
-    assert_eq!(bloom.contains_hash_indices(&bloom.get_hash_indices(b"world")), false);
-}
+        let indices = bloom.get_hash_indices(b"hello");
+        println!("{:?}", indices);
+        assert_eq!(bloom.contains_hash_indices(&indices), true);
+        assert_eq!(bloom.contains_hash_indices(&bloom.get_hash_indices(b"world")), false);
+    }
 
 
-#[test]
-fn counting_bloom_test() {
-    let mut builder =
-        FilterBuilder::new(10_000, 0.01);
-    let mut bloom = builder.build_counting_bloom_filter();
+    #[test]
+    fn counting_bloom_test() {
+        let mut builder =
+            FilterBuilder::new(10_000, 0.01);
+        let mut bloom = builder.build_counting_bloom_filter();
 
-    bloom.add(b"hello");
+        bloom.add(b"hello");
 
-    assert_eq!(bloom.contains(b"hello"), true);
+        assert_eq!(bloom.contains(b"hello"), true);
 
-    bloom.remove(b"hello");
-    assert_eq!(bloom.contains(b"hello"), false);
-}
+        bloom.remove(b"hello");
+        assert_eq!(bloom.contains(b"hello"), false);
+    }
 
-#[test]
-fn counting_bloom_repeat_test() {
-    let mut builder = FilterBuilder::new(100_000, 0.01);
-    // enable_repeat_insert is true
-    builder.enable_repeat_insert(true);
-    let mut cbf = builder.build_counting_bloom_filter();
-    cbf.add(b"hello"); // modify underlying vector counter.
-    cbf.add(b"hello"); // modify underlying vector counter.
-    assert_eq!(cbf.contains(b"hello"), true);
-    cbf.remove(b"hello");
-    assert_eq!(cbf.contains(b"hello"), true);
-    cbf.remove(b"hello");
-    assert_eq!(cbf.contains(b"hello"), false);
+    #[test]
+    fn counting_bloom_repeat_test() {
+        let mut builder = FilterBuilder::new(100_000, 0.01);
+        // enable_repeat_insert is true
+        builder.enable_repeat_insert(true);
+        let mut cbf = builder.build_counting_bloom_filter();
+        cbf.add(b"hello"); // modify underlying vector counter.
+        cbf.add(b"hello"); // modify underlying vector counter.
+        assert_eq!(cbf.contains(b"hello"), true);
+        cbf.remove(b"hello");
+        assert_eq!(cbf.contains(b"hello"), true);
+        cbf.remove(b"hello");
+        assert_eq!(cbf.contains(b"hello"), false);
 
-    // enable_repeat_insert is false
-    builder.enable_repeat_insert(false);
-    let mut cbf = builder.build_counting_bloom_filter();
-    cbf.add(b"hello"); // modify underlying vector counter.
-    cbf.add(b"hello"); // not modify underlying vector counter because b"hello" has been added.
-    assert_eq!(cbf.contains(b"hello"), true);
-    cbf.remove(b"hello");
-    assert_eq!(cbf.contains(b"hello"), false);
-}
+        // enable_repeat_insert is false
+        builder.enable_repeat_insert(false);
+        let mut cbf = builder.build_counting_bloom_filter();
+        cbf.add(b"hello"); // modify underlying vector counter.
+        cbf.add(b"hello"); // not modify underlying vector counter because b"hello" has been added.
+        assert_eq!(cbf.contains(b"hello"), true);
+        cbf.remove(b"hello");
+        assert_eq!(cbf.contains(b"hello"), false);
+    }
 
-#[test]
-fn counting_bloom_from_test() {
-    let mut builder = FilterBuilder::new(10_000_000, 0.01);
-    let mut cbf = builder.build_counting_bloom_filter();
+    #[test]
+    fn counting_bloom_from_test() {
+        let mut builder = FilterBuilder::new(10_000_000, 0.01);
+        let mut cbf = builder.build_counting_bloom_filter();
 
-    cbf.add(b"hello");
-    cbf.add(b"hello");
+        cbf.add(b"hello");
+        cbf.add(b"hello");
 
-    let mut cbf_copy = CountingBloomFilter::from_u8_array(cbf.get_u8_array(), builder.hashes, true);
-    assert_eq!(cbf_copy.contains(b"hello"), true);
-    cbf_copy.remove(b"hello");
-    assert_eq!(cbf_copy.contains(b"hello"), true);
-    cbf_copy.remove(b"hello");
-    assert_eq!(cbf_copy.contains(b"hello"), false);
-
-    let mut cbf_copy = CountingBloomFilter::from_u16_array(cbf.get_u16_array(), builder.hashes, true);
-    assert_eq!(cbf_copy.contains(b"hello"), true);
-    cbf_copy.remove(b"hello");
-    assert_eq!(cbf_copy.contains(b"hello"), true);
-    cbf_copy.remove(b"hello");
-    assert_eq!(cbf_copy.contains(b"hello"), false);
-
-    let mut cbf_copy = CountingBloomFilter::from_u32_array(cbf.get_u32_array(), builder.hashes, true);
-    assert_eq!(cbf_copy.contains(b"hello"), true);
-    cbf_copy.remove(b"hello");
-    assert_eq!(cbf_copy.contains(b"hello"), true);
-    cbf_copy.remove(b"hello");
-    assert_eq!(cbf_copy.contains(b"hello"), false);
-
-    #[cfg(target_pointer_width = "64")]{
-        let mut cbf_copy = CountingBloomFilter::from_u64_array(cbf.get_u64_array(), builder.hashes, true);
+        let mut cbf_copy = CountingBloomFilter::from_u8_array(cbf.get_u8_array(), builder.hashes, true);
         assert_eq!(cbf_copy.contains(b"hello"), true);
         cbf_copy.remove(b"hello");
         assert_eq!(cbf_copy.contains(b"hello"), true);
         cbf_copy.remove(b"hello");
         assert_eq!(cbf_copy.contains(b"hello"), false);
-    }
-}
 
-#[test]
-fn counting_bloom_hash_indices_test() {
-    let mut builder =
-        FilterBuilder::new(10_000, 0.01);
-    let mut bloom = builder.build_counting_bloom_filter();
+        let mut cbf_copy = CountingBloomFilter::from_u16_array(cbf.get_u16_array(), builder.hashes, true);
+        assert_eq!(cbf_copy.contains(b"hello"), true);
+        cbf_copy.remove(b"hello");
+        assert_eq!(cbf_copy.contains(b"hello"), true);
+        cbf_copy.remove(b"hello");
+        assert_eq!(cbf_copy.contains(b"hello"), false);
 
-    bloom.add(b"hello");
+        let mut cbf_copy = CountingBloomFilter::from_u32_array(cbf.get_u32_array(), builder.hashes, true);
+        assert_eq!(cbf_copy.contains(b"hello"), true);
+        cbf_copy.remove(b"hello");
+        assert_eq!(cbf_copy.contains(b"hello"), true);
+        cbf_copy.remove(b"hello");
+        assert_eq!(cbf_copy.contains(b"hello"), false);
 
-    assert_eq!(bloom.contains(b"hello"), true);
-    assert_eq!(bloom.contains_hash_indices(&bloom.get_hash_indices(b"hello")), true);
-    assert_eq!(bloom.contains_hash_indices(&bloom.get_hash_indices(b"world")), false);
-
-
-    bloom.remove(b"hello");
-    assert_eq!(bloom.contains(b"hello"), false);
-    assert_eq!(bloom.contains_hash_indices(&bloom.get_hash_indices(b"hello")), false);
-}
-
-#[test]
-fn counting_bloom_estimate_count() {
-    let mut builder =
-        FilterBuilder::new(10_000, 0.01);
-    let mut bloom = builder.build_counting_bloom_filter();
-
-    bloom.add(b"hello");
-    bloom.add(b"world");
-
-    assert_eq!(bloom.estimate_count(b"hello"), 1);
-    let indices = bloom.get_hash_indices(b"hello");
-
-    for index in indices {
-        assert_eq!(bloom.counter_at(index), 1)
+        #[cfg(target_pointer_width = "64")]{
+            let mut cbf_copy = CountingBloomFilter::from_u64_array(cbf.get_u64_array(), builder.hashes, true);
+            assert_eq!(cbf_copy.contains(b"hello"), true);
+            cbf_copy.remove(b"hello");
+            assert_eq!(cbf_copy.contains(b"hello"), true);
+            cbf_copy.remove(b"hello");
+            assert_eq!(cbf_copy.contains(b"hello"), false);
+        }
     }
 
-    assert_eq!(bloom.estimate_count(b"world"), 1);
-    for index in bloom.get_hash_indices(b"world") {
-        assert!(bloom.counter_at(index) <= 2);
+    #[test]
+    fn counting_bloom_hash_indices_test() {
+        let mut builder =
+            FilterBuilder::new(10_000, 0.01);
+        let mut bloom = builder.build_counting_bloom_filter();
+
+        bloom.add(b"hello");
+
+        assert_eq!(bloom.contains(b"hello"), true);
+        assert_eq!(bloom.contains_hash_indices(&bloom.get_hash_indices(b"hello")), true);
+        assert_eq!(bloom.contains_hash_indices(&bloom.get_hash_indices(b"world")), false);
+
+
+        bloom.remove(b"hello");
+        assert_eq!(bloom.contains(b"hello"), false);
+        assert_eq!(bloom.contains_hash_indices(&bloom.get_hash_indices(b"hello")), false);
     }
+
+    #[test]
+    fn counting_bloom_estimate_count() {
+        let mut builder =
+            FilterBuilder::new(10_000, 0.01);
+        let mut bloom = builder.build_counting_bloom_filter();
+
+        bloom.add(b"hello");
+        bloom.add(b"world");
+
+        assert_eq!(bloom.estimate_count(b"hello"), 1);
+        let indices = bloom.get_hash_indices(b"hello");
+
+        for index in indices {
+            assert_eq!(bloom.counter_at(index), 1)
+        }
+
+        assert_eq!(bloom.estimate_count(b"world"), 1);
+        for index in bloom.get_hash_indices(b"world") {
+            assert!(bloom.counter_at(index) <= 2);
+        }
+    }
+
 }
