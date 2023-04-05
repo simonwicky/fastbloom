@@ -1,29 +1,15 @@
 <h1>fastbloom</h1>
 
-[![OSCS Status](https://www.oscs1024.com/platform/badge/yankun1992/fastbloom.svg?size=small)](https://www.oscs1024.com/project/yankun1992/fastbloom?ref=badge_small)
-[![docs.rs](https://img.shields.io/docsrs/fastbloom-rs/latest)](https://docs.rs/fastbloom-rs)
-[![Test Rust](https://github.com/yankun1992/fastbloom/actions/workflows/test_rust.yml/badge.svg)](https://github.com/yankun1992/fastbloom/actions/workflows/test_rust.yml)
-[![Test Python](https://github.com/yankun1992/fastbloom/actions/workflows/test_python.yml/badge.svg)](https://github.com/yankun1992/fastbloom/actions/workflows/test_python.yml)
-[![Benchmark](https://github.com/yankun1992/fastbloom/actions/workflows/benchmark.yml/badge.svg)](https://github.com/yankun1992/fastbloom/actions/workflows/benchmark.yml)
-[![Crates Latest Release](https://img.shields.io/crates/v/fastbloom-rs)](https://crates.io/crates/fastbloom-rs)
-[![PyPI Latest Release](https://img.shields.io/pypi/v/fastbloom-rs)](https://pypi.org/project/fastbloom-rs/)
-
-A fast [bloom filter](#BloomFilter) | [counting bloom filter](#countingbloomfilter) implemented by Rust for Rust and
-Python!
+A fast [bloom filter](#BloomFilter) | [counting bloom filter](#countingbloomfilter) implemented by Rust for Rust
 
 Language: [简体中文](./docs/README.zh_cn.md)
 
 - [setup](#setup)
-    - [Python](#python)
-        - [requirements](#requirements)
-        - [install](#install)
     - [Rust](#rust)
 - [Examples](#examples)
     - [BloomFilter](#bloomfilter)
-        - [Python](#python-1)
         - [Rust](#rust-1)
     - [CountingBloomFilter](#countingbloomfilter)
-        - [Python](#python-2)
         - [Rust](#rust-2)
 - [benchmark](#benchmark)
     - [computer info](#computer-info)
@@ -35,22 +21,6 @@ Language: [简体中文](./docs/README.zh_cn.md)
     - [add one million to counting bloom filter](#add-one-million-to-counting-bloom-filter)
 
 # setup
-
-## Python
-
-### requirements
-
-```
-Python >= 3.7
-```
-
-### install
-
-Install the latest fastbloom version with:
-
-```bash
-pip install fastbloom-rs
-```
 
 ## Rust
 
@@ -69,64 +39,6 @@ matches are possible, but false negatives are not.
 **Reference**: Bloom, B. H. (1970). Space/time trade-offs in hash coding with allowable errors.
 Communications of the ACM, 13(7), 422-426.
 [Full text article](http://crystal.uta.edu/~mcguigan/cse6350/papers/Bloom.pdf)
-
-### Python
-
-basic usage
-
-```python
-from fastbloom_rs import BloomFilter
-
-bloom = BloomFilter(100_000_000, 0.01)
-
-bloom.add_str('hello')
-bloom.add_bytes(b'world')
-bloom.add_int(9527)
-
-assert bloom.contains('hello')
-assert bloom.contains(b'world')
-assert bloom.contains(9527)
-
-assert not bloom.contains('hello world')
-```
-
-build bloom filter from bytes or list
-
-```python
-from fastbloom_rs import BloomFilter
-
-bloom = BloomFilter(100_000_000, 0.01)
-bloom.add_str('hello')
-assert bloom.contains('hello')
-
-bloom2 = BloomFilter.from_bytes(bloom.get_bytes(), bloom.hashes())
-assert bloom2.contains('hello')
-
-bloom3 = BloomFilter.from_int_array(bloom.get_int_array(), bloom.hashes())
-assert bloom3.contains('hello')
-
-```
-
-there are some bulk api for python to reduce ffi cost between python and rust
-
-```python
-bloom = BloomFilter(100_000_000, 0.01)
-inserts = [1, 2, 3, 4, 5, 6, 7, 9, 18, 68, 90, 100]
-checks = [1, 2, 3, 4, 5, 6, 7, 9, 18, 68, 90, 100, 190, 290, 390]
-results = [True, True, True, True, True, True, True, True, True, True, True, True, False, False, False]
-
-bloom.add_int_batch(inserts)
-contains = bloom.contains_int_batch(checks)
-assert contains == results
-
-bloom.add_str_batch(list(map(lambda x: str(x), inserts)))
-assert bloom.contains_str_batch(list(map(lambda x: str(x), checks))) == results
-
-bloom.add_bytes_batch(list(map(lambda x: bytes(x), inserts)))
-assert bloom.contains_bytes_batch(list(map(lambda x: bytes(x), checks))) == results
-```
-
-more examples at [py_tests](py_tests/test_bloom.py).
 
 ### Rust
 
@@ -151,40 +63,6 @@ Bloom filter is a small counter associated with a basic Bloom filter bit.
 **Reference**: F. Bonomi, M. Mitzenmacher, R. Panigrahy, S. Singh, and G. Varghese, “An Improved
 Construction for Counting Bloom Filters,” in 14th Annual European Symposium on
 Algorithms, LNCS 4168, 2006
-
-### Python
-
-```python
-from fastbloom_rs import CountingBloomFilter
-
-cbf = CountingBloomFilter(1000_000, 0.01)
-cbf.add('hello')
-cbf.add('hello')
-assert 'hello' in cbf
-cbf.remove('hello')
-assert 'hello' in cbf  # because 'hello' added twice. 
-# If add same element larger than 15 times, then remove 15 times the filter will not contain the element.
-cbf.remove('hello')
-assert 'hello' not in cbf
-```
-
-A CountingBloomFilter has a four bits counter to save hash index, so when insert an
-element repeatedly, the counter will spill over quickly. So, you can set
-`enable_repeat_insert` to `False` to check whether the element has added.
-if it has added, it will not add again. `enable_repeat_insert` default set to `True`.
-
-```python
-from fastbloom_rs import CountingBloomFilter
-
-cbf = CountingBloomFilter(1000_000, 0.01, False)
-cbf.add('hello')
-cbf.add('hello')  # because enable_repeat_insert=False, this addition will not take effect. 
-assert 'hello' in cbf
-cbf.remove('hello')
-assert 'hello' not in cbf 
-```
-
-more examples at [py_tests](py_tests/test_counting_bloom_filter.py).
 
 ### Rust
 
