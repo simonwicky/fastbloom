@@ -11,9 +11,9 @@ use rand::rngs::ThreadRng;
 use siphasher::sip::SipHasher13;
 use twox_hash::{Xxh3Hash64, XxHash64};
 use xxhash_rust::const_xxh3::xxh3_64 as const_xxh3;
-use xxhash_rust::xxh3::{xxh3_64, xxh3_64_with_seed};
+use xxhash_rust::xxh3::xxh3_64_with_seed;
 
-use fastbloom_rs::{BloomFilter, CountingBloomFilter, Deletable, FilterBuilder, Hashes, Membership};
+use fastbloom_rs::{BloomFilter, FilterBuilder, Membership};
 
 #[inline]
 fn sip_new(key: &[u8; 16]) -> SipHasher13 {
@@ -45,6 +45,10 @@ fn bloom_add_all_test(filter: &mut BloomFilter, inputs: &[String]) {
 
 fn bloom_add_test(filter: &mut BloomFilter, data: &[u8]) {
     filter.add(data);
+}
+
+fn bloom_lookup_and_add_test(filter: &mut BloomFilter, data: &[u8]) {
+    filter.contains_then_add(data);
 }
 
 fn bloom_lookup_and_add_all_test(filter: &mut BloomFilter, inputs: &[String]) {
@@ -168,16 +172,15 @@ fn bloom_add_bench(c: &mut Criterion) {
 
 fn bloom_lookup_and_add_bench(c: &mut Criterion) {
     let inputs: Vec<String> = (1..1_000_000).map(|n| { n.to_string() }).collect();
-    let items_count = 100_000_000;
+    let items_count = 10_000_000;
 
-    let hello = "hellohellohellohello".to_string();
+    let hello = b"hellohellohellohello";
     let mut random = rand::thread_rng();
-    let range = 0..10_000_000;
 
-    let mut filter = FilterBuilder::new(items_count as u64, 0.001).build_bloom_filter();
-    let mut filter2 = FilterBuilder::new(items_count as u64, 0.001).build_bloom_filter();
+    let mut filter = FilterBuilder::new(items_count as u64, 0.0001).build_bloom_filter();
+    let mut filter2 = FilterBuilder::new(items_count as u64, 0.0001).build_bloom_filter();
 
-    c.bench_function("bloom_lookup_and_add_all_test", |b| b.iter(|| bloom_lookup_and_add_all_test(&mut filter, &inputs[..])));
+    c.bench_function("bloom_lookup_and_add_test", |b| b.iter(|| bloom_lookup_and_add_test(&mut filter2, hello)));
     c.bench_function("bloom_lookup_and_add_all_merged_test", |b| b.iter(|| bloom_lookup_and_add_all_merged_test(&mut filter2, &inputs[..])));
 }
 
